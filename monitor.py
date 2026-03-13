@@ -166,7 +166,7 @@ def main():
 
     if is_noon_run or is_manual_run:
         graph_file = generate_graph()
-        repo_url = "https://alptorres.github.io/Korea-Flight-Scraper/prices.png"
+        repo_url = "https://raw.githubusercontent.com/alptorres/Korea-Flight-Scraper/refs/heads/main/prices.png"
         send_alert("📊 Korea Ticket Price Log",
            f"Korea ticket price log: {repo_url}")
 
