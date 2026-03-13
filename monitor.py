@@ -31,7 +31,7 @@ RETURN_DATES = [
 PRICE_ALERT = 4000
 ROUNDTRIP_ALERT = 7000
 
-NTFY_TOPIC = "korea-flight-alerts"
+NTFY_TOPIC = "hrcc-korea-flight-alerts"
 
 DEP_LOG = "depart_prices.json"
 RET_LOG = "return_prices.json"
