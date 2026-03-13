@@ -3,7 +3,7 @@ name: Korea Flight Monitor
 on:
   workflow_dispatch:        # 👈 enables manual runs
   schedule:
-    - cron: "*/30 * * * *"    # every 30 minutes
+    - cron: "0 * * * *"       # every hour, at minute 0
     - cron: "0 4 * * *"       # 12:00 PM Philippine time (UTC+8)
 
 
@@ -26,6 +26,7 @@ jobs:
         run: python monitor.py
 
       - name: Commit graph
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 4 * * *')
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
@@ -34,3 +35,4 @@ jobs:
           git push origin main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
