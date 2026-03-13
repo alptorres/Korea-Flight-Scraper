@@ -3,8 +3,9 @@ name: Korea Flight Monitor
 on:
   workflow_dispatch:        # 👈 enables manual runs
   schedule:
-    - cron: "*/5 * * * *"   # every 5 minutes
-    - cron: "0 4 * * *"     # 12:00 PM Philippine time (UTC+8)
+    - cron: "*/30 * * * *"    # every 30 minutes
+    - cron: "0 4 * * *"       # 12:00 PM Philippine time (UTC+8)
+
 
 permissions:
   contents: write
