@@ -157,7 +157,7 @@ def main():
 
     # Daily 12pm Philippine time notification (UTC+8 → 04:00 UTC)
     now = datetime.now(timezone.utc)
-    is_noon_run = (now.hour == 4 and now.minute == 0)
+    is_noon_run = (now.hour == 4 and now.minute < 30)
 
     # Detect manual run
     is_manual_run = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
