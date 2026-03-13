@@ -288,12 +288,15 @@ def main():
     check_roundtrip(dep, ret)
     driver.quit()
 
-    # Always generate graph
-    graph_file = generate_graph()
-
     # Daily 12pm Philippine time notification (UTC+8 → 04:00 UTC)
     now = datetime.utcnow()
-    if now.hour == 4 and now.minute == 0:
+    is_noon_run = (now.hour == 4 and now.minute < 30)
+
+    # Detect manual run: GitHub Actions sets GITHUB_EVENT_NAME=workflow_dispatch
+    is_manual_run = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+
+    if is_noon_run or is_manual_run:
+        graph_file = generate_graph()
         repo_url = "https://alptorres.github.io/Korea-Flight-Scraper/prices.png"
         send_alert("📊 Korea Ticket Price Log",
            f"Korea ticket price log: {repo_url}")
