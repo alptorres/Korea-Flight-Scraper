@@ -1,7 +1,7 @@
 import json
 import requests
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -16,25 +16,14 @@ from selenium.webdriver.common.by import By
 ORIGINS = ["MNL", "CRK"]
 DEST = "ICN"
 
-DEPART_DATES = [
-    "2027-01-09",
-    "2027-01-10",
-    "2027-01-11"
-]
+DEP_DATE = "2027-01-10"
+RET_DATE = "2027-01-16"
 
-RETURN_DATES = [
-    "2027-01-15",
-    "2027-01-16",
-    "2027-01-17"
-]
-
-PRICE_ALERT = 8000
 ROUNDTRIP_ALERT = 10000
 
 NTFY_TOPIC = "hrcc-korea-flight-alerts"
 
-DEP_LOG = "depart_prices.json"
-RET_LOG = "return_prices.json"
+ROUNDTRIP_LOG = "roundtrip_prices.json"
 GRAPH_FILE = "prices.png"
 
 #########################
@@ -51,19 +40,21 @@ def send_alert(title, body):
 # GOOGLE FLIGHTS
 #########################
 
-def build_google_url(origin, dest, date):
-    return f"https://www.google.com/travel/flights?q=Flights%20from%20{origin}%20to%20{dest}%20on%20{date}&curr=PHP"
+def build_google_url(origin, dest, dep_date, ret_date):
+    return (
+        f"https://www.google.com/travel/flights?"
+        f"q=Flights%20from%20{origin}%20to%20{dest}%20on%20{dep_date}%20returning%20on%20{ret_date}&curr=PHP"
+    )
 
 def start_browser():
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    # Explicitly point to Chromium binary on GitHub runners
     options.binary_location = "/usr/bin/chromium-browser"
     return webdriver.Chrome(options=options)
 
-def scrape_google_price(driver, url):
+def scrape_google_roundtrip(driver, url):
     driver.get(url)
     driver.implicitly_wait(8)
     prices = driver.find_elements(By.XPATH, "//*[contains(text(),'₱')]")
@@ -74,27 +65,6 @@ def scrape_google_price(driver, url):
             values.append(int(txt))
     if values:
         return min(values)
-    return None
-
-#########################
-# CEBU PACIFIC API
-#########################
-
-def cebpac_search(origin, dest, date):
-    url = "https://api.cebupacificair.com/availability/search"
-    payload = {
-        "origin": origin,
-        "destination": dest,
-        "departureDate": date,
-        "currency": "PHP"
-    }
-    try:
-        r = requests.post(url, json=payload, timeout=10)
-        data = r.json()
-        if "lowestFare" in data:
-            return data["lowestFare"]
-    except:
-        pass
     return None
 
 #########################
@@ -117,29 +87,20 @@ def save_log(file,data):
 #########################
 
 def generate_graph():
-    dep = load_log(DEP_LOG)
-    ret = load_log(RET_LOG)
-
-    df_dep = pd.DataFrame(dep)
-    df_ret = pd.DataFrame(ret)
+    log = load_log(ROUNDTRIP_LOG)
+    df = pd.DataFrame(log)
 
     plt.figure(figsize=(12,6))
 
-    if not df_dep.empty:
-        df_dep["time"] = pd.to_datetime(df_dep["time"])
-        for route in df_dep["route"].unique():
-            subset = df_dep[df_dep["route"] == route]
-            plt.plot(subset["time"], subset["price"], marker="o", label=f"Departure {route}")
+    if not df.empty:
+        df["time"] = pd.to_datetime(df["time"])
+        for origin in df["origin"].unique():
+            subset = df[df["origin"] == origin]
+            plt.plot(subset["time"], subset["price"], marker="o", label=f"{origin} → {DEST} Roundtrip")
 
-    if not df_ret.empty:
-        df_ret["time"] = pd.to_datetime(df_ret["time"])
-        for route in df_ret["route"].unique():
-            subset = df_ret[df_ret["route"] == route]
-            plt.plot(subset["time"], subset["price"], marker="x", label=f"Return {route}")
-
-    plt.title("Flight Price Trends")
+    plt.title("Roundtrip Flight Price Trends (Jan 10–16)")
     plt.xlabel("Time Checked")
-    plt.ylabel("Price (PHP)")
+    plt.ylabel("Total Price (PHP)")
     plt.legend()
     plt.tight_layout()
     plt.savefig(GRAPH_FILE)
@@ -147,135 +108,43 @@ def generate_graph():
     return GRAPH_FILE
 
 #########################
-# DEPARTURE CHECK
+# ROUNDTRIP CHECK
 #########################
 
-def check_departures(driver):
-    log = load_log(DEP_LOG)
-    cheapest = None
+def check_roundtrip(driver):
+    log = load_log(ROUNDTRIP_LOG)
+    results = []
+
     for origin in ORIGINS:
-        for d in DEPART_DATES:
-            url = build_google_url(origin, DEST, d)
-            g_price = scrape_google_price(driver, url)
-            c_price = cebpac_search(origin, DEST, d)
-            price = None
-            source = None
-            if g_price and c_price:
-                price = min(g_price, c_price)
-                source = "Google Flights / Cebu Pacific API"
-            elif g_price:
-                price = g_price
-                source = "Google Flights"
-            elif c_price:
-                price = c_price
-                source = "Cebu Pacific API"
-            if not price:
-                continue
+        g_price = scrape_google_roundtrip(driver, build_google_url(origin, DEST, DEP_DATE, RET_DATE))
+        if g_price:
             entry = {
                 "time": str(datetime.now()),
-                "route": f"{origin}-ICN",
-                "date": d,
-                "price": price,
-                "source": source,
-                "url": url
+                "origin": origin,
+                "dep_date": DEP_DATE,
+                "ret_date": RET_DATE,
+                "price": g_price,
+                "source": "Google Flights"
             }
             log.append(entry)
-            if cheapest is None or price < cheapest["price"]:
-                cheapest = entry
-    save_log(DEP_LOG, log)
-    if cheapest and cheapest["price"] < PRICE_ALERT:
-        send_alert(
-            "✈️ Cheap Departure Found",
-            f"""Route: {cheapest["route"]}
-Date: {cheapest["date"]}
-Price: ₱{cheapest["price"]}
+            results.append(entry)
 
-Click here to view flight:
-{cheapest["url"]}
-"""
-        )
-    return cheapest
+    save_log(ROUNDTRIP_LOG, log)
 
-#########################
-# RETURN CHECK
-#########################
+    # Build notification body with separate lines per origin
+    if results:
+        body_lines = []
+        for r in results:
+            body_lines.append(
+                f"{r['origin']} → {DEST}: ₱{r['price']} (Dep {r['dep_date']} / Ret {r['ret_date']})"
+            )
+        body = "\n".join(body_lines)
 
-def check_returns(driver):
-    log = load_log(RET_LOG)
-    cheapest = None
-    for origin in ORIGINS:
-        for d in RETURN_DATES:
-            url = build_google_url(DEST, origin, d)
-            g_price = scrape_google_price(driver, url)
-            c_price = cebpac_search(DEST, origin, d)
-            price = None
-            source = None
-            if g_price and c_price:
-                price = min(g_price, c_price)
-                source = "Google Flights / Cebu Pacific API"
-            elif g_price:
-                price = g_price
-                source = "Google Flights"
-            elif c_price:
-                price = c_price
-                source = "Cebu Pacific API"
-            if not price:
-                continue
-            entry = {
-                "time": str(datetime.now()),
-                "route": f"ICN-{origin}",
-                "date": d,
-                "price": price,
-                "source": source,
-                "url": url
-            }
-            log.append(entry)
-            if cheapest is None or price < cheapest["price"]:
-                cheapest = entry
-    save_log(RET_LOG, log)
-    if cheapest and cheapest["price"] < PRICE_ALERT:
-        send_alert(
-            "✈️ Cheap Return Found",
-            f"""Route: {cheapest["route"]}
-Date: {cheapest["date"]}
-Price: ₱{cheapest["price"]}
+        # Alert if any origin is below threshold
+        if any(r["price"] < ROUNDTRIP_ALERT for r in results):
+            send_alert("⚡ Roundtrip Prices Found", body)
 
-Click here to view flight:
-{cheapest["url"]}
-"""
-        )
-    return cheapest
-
-#########################
-# ROUND TRIP DETECTION
-#########################
-
-def check_roundtrip(dep, ret):
-    if not dep or not ret:
-        return
-    total = dep["price"] + ret["price"]
-    if total < ROUNDTRIP_ALERT:
-        send_alert(
-            "⚡ CHEAP ROUND TRIP FOUND",
-            f"""Departure
-{dep["route"]}
-{dep["date"]}
-₱{dep["price"]}
-
-Return
-{ret["route"]}
-{ret["date"]}
-₱{ret["price"]}
-
-Total Price: ₱{total}
-
-Click here for departure:
-{dep["url"]}
-
-Click here for return:
-{ret["url"]}
-"""
-        )
+    return results
 
 #########################
 # MAIN
@@ -283,16 +152,14 @@ Click here for return:
 
 def main():
     driver = start_browser()
-    dep = check_departures(driver)
-    ret = check_returns(driver)
-    check_roundtrip(dep, ret)
+    results = check_roundtrip(driver)
     driver.quit()
 
     # Daily 12pm Philippine time notification (UTC+8 → 04:00 UTC)
-    now = datetime.utcnow()
-    is_noon_run = (now.hour == 4 and now.minute < 30)
+    now = datetime.now(timezone.utc)
+    is_noon_run = (now.hour == 4 and now.minute == 0)
 
-    # Detect manual run: GitHub Actions sets GITHUB_EVENT_NAME=workflow_dispatch
+    # Detect manual run
     is_manual_run = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
 
     if is_noon_run or is_manual_run:
