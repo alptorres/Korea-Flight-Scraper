@@ -1,0 +1,27 @@
+name: Korea Flight Monitor
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"      # every 5 minutes
+    - cron: "0 4 * * *"        # 12:00 PM Philippine time (UTC+8)
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          pip install selenium requests matplotlib pandas
+          sudo apt-get update
+          sudo apt-get install chromium-browser chromium-chromedriver -y
+
+      - name: Run monitor
+        run: python monitor.py
+
+      - name: Commit graph
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add prices.png
