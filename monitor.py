@@ -58,6 +58,9 @@ def start_browser():
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    # Explicitly point to Chromium binary on GitHub runners
+    options.binary_location = "/usr/bin/chromium-browser"
     return webdriver.Chrome(options=options)
 
 def scrape_google_price(driver, url):
@@ -294,7 +297,6 @@ def main():
         repo_url = "https://alptorres.github.io/Korea-Flight-Scraper/prices.png"
         send_alert("📊 Korea Ticket Price Log",
            f"Korea ticket price log: {repo_url}")
-
 
 if __name__ == "__main__":
     main()
