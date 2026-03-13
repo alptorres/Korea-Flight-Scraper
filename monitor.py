@@ -116,7 +116,8 @@ def check_roundtrip(driver):
     results = []
 
     for origin in ORIGINS:
-        g_price = scrape_google_roundtrip(driver, build_google_url(origin, DEST, DEP_DATE, RET_DATE))
+        g_url = build_google_url(origin, DEST, DEP_DATE, RET_DATE)
+        g_price = scrape_google_roundtrip(driver, g_url)
         if g_price:
             entry = {
                 "time": str(datetime.now()),
@@ -124,23 +125,24 @@ def check_roundtrip(driver):
                 "dep_date": DEP_DATE,
                 "ret_date": RET_DATE,
                 "price": g_price,
-                "source": "Google Flights"
+                "source": "Google Flights",
+                "url": g_url
             }
             log.append(entry)
             results.append(entry)
 
     save_log(ROUNDTRIP_LOG, log)
 
-    # Build notification body with separate lines per origin
     if results:
         body_lines = []
         for r in results:
             body_lines.append(
-                f"{r['origin']} → {DEST}: ₱{r['price']} (Dep {r['dep_date']} / Ret {r['ret_date']})"
+                f"{r['origin']} → {DEST}: ₱{r['price']} "
+                f"(Dep {r['dep_date']} / Ret {r['ret_date']})\n"
+                f"Click here: {r['url']}"
             )
-        body = "\n".join(body_lines)
+        body = "\n\n".join(body_lines)
 
-        # Alert if any origin is below threshold
         if any(r["price"] < ROUNDTRIP_ALERT for r in results):
             send_alert("⚡ Roundtrip Prices Found", body)
 
