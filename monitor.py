@@ -291,9 +291,10 @@ def main():
     # Daily 12pm Philippine time notification (UTC+8 → 04:00 UTC)
     now = datetime.utcnow()
     if now.hour == 4 and now.minute == 0:
-        repo_url = "https://<your-username>.github.io/<your-repo>/prices.png"
+        repo_url = "https://alptorres.github.io/Korea-Flight-Scraper/prices.png"
         send_alert("📊 Korea Ticket Price Log",
-                   f"Korea ticket price log: {repo_url}")
+           f"Korea ticket price log: {repo_url}")
+
 
 if __name__ == "__main__":
     main()
