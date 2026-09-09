@@ -2220,5 +2220,23 @@
     "price": 24810,
     "source": "Google Flights",
     "url": "https://www.google.com/travel/flights?q=Flights%20from%20CRK%20to%20ICN%20on%202027-01-10%20returning%20on%202027-01-16&curr=PHP"
+  },
+  {
+    "time": "2026-09-09 08:46:42.375980",
+    "origin": "MNL",
+    "dep_date": "2027-01-10",
+    "ret_date": "2027-01-16",
+    "price": 16112,
+    "source": "Google Flights",
+    "url": "https://www.google.com/travel/flights?q=Flights%20from%20MNL%20to%20ICN%20on%202027-01-10%20returning%20on%202027-01-16&curr=PHP"
+  },
+  {
+    "time": "2026-09-09 08:46:44.206170",
+    "origin": "CRK",
+    "dep_date": "2027-01-10",
+    "ret_date": "2027-01-16",
+    "price": 24810,
+    "source": "Google Flights",
+    "url": "https://www.google.com/travel/flights?q=Flights%20from%20CRK%20to%20ICN%20on%202027-01-10%20returning%20on%202027-01-16&curr=PHP"
   }
 ]
